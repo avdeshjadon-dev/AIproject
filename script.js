@@ -168,5 +168,6 @@ async function sendMessage() {
         
         saveChatSessions();
         renderCurrentChat();
+        //avdesh
     }
 }
