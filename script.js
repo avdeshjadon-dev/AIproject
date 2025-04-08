@@ -1,3 +1,23 @@
+// Authentication Check
+document.addEventListener('DOMContentLoaded', () => {
+    // Redirect to login if not authenticated
+    if (!localStorage.getItem('isAuthenticated')) {
+        window.location.href = 'login.html';
+        return;
+    }
+
+    // Load user data
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    if (currentUser) {
+        // You could display the user's name in the UI if needed
+        // document.querySelector('.user-greeting').textContent = `Hello, ${currentUser.name}`;
+    }
+
+    // Initialize the chat application
+    initChatApp();
+});
+
+// Chat Application
 const API_KEY = "AIzaSyCTmztnC6JovghK8_ysQfkQaLYC3BDcQFI"; // 🔐 Replace with your actual key
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
 
@@ -5,33 +25,64 @@ const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-
 let chatSessions = [];
 let currentSessionId = null;
 
-// Initialize the app
-document.addEventListener('DOMContentLoaded', () => {
+function initChatApp() {
     loadChatSessions();
     createNewSession();
     
+    // Set up event listeners
     document.getElementById('userInput').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
             sendMessage();
         }
     });
-});
+
+    // Add logout functionality if you have a logout button
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', handleLogout);
+    }
+
+    // Add clear session button functionality
+    const clearSessionBtn = document.getElementById('clearSessionBtn');
+    if (clearSessionBtn) {
+        clearSessionBtn.addEventListener('click', clearCurrentSession);
+    }
+}
+
+function handleLogout() {
+    // Clear authentication flags
+    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('currentUser');
+    
+    // Redirect to login page
+    window.location.href = 'login.html';
+}
 
 function loadChatSessions() {
-    const savedSessions = localStorage.getItem('chatSessions');
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    if (!currentUser) return;
+
+    const savedSessions = localStorage.getItem(`chatSessions_${currentUser.id}`);
     if (savedSessions) {
         chatSessions = JSON.parse(savedSessions);
     }
 }
 
 function saveChatSessions() {
-    localStorage.setItem('chatSessions', JSON.stringify(chatSessions));
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    if (!currentUser) return;
+
+    localStorage.setItem(`chatSessions_${currentUser.id}`, JSON.stringify(chatSessions));
 }
 
 function createNewSession() {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    if (!currentUser) return;
+
     const sessionId = Date.now().toString();
     const newSession = {
         id: sessionId,
+        userId: currentUser.id,
         title: 'New Consultation',
         messages: [
             {
@@ -134,8 +185,18 @@ async function sendMessage() {
             },
             body: JSON.stringify({
                 contents: [
-                    { parts: [{ text: message }] }
-                ]
+                    { 
+                        role: "user",
+                        parts: [{ text: "You are a legal consultation assistant. Provide clear, concise legal information but always remind users you're not a substitute for professional legal advice. The user asks: " + message }] 
+                    }
+                ],
+                generationConfig: {
+                    temperature: 0.5,
+                    topP: 0.95,
+                    topK: 64,
+                    maxOutputTokens: 8192,
+                    responseMimeType: "text/plain",
+                }
             })
         });
 
@@ -143,7 +204,12 @@ async function sendMessage() {
         document.getElementById('chatBox').removeChild(typingIndicator);
         
         const data = await response.json();
-        const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn't understand that.";
+        let reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn't understand that. Please try again.";
+        
+        // Add disclaimer to the response
+        if (!reply.includes("not a substitute for professional legal advice")) {
+            reply += "\n\nDisclaimer: This information is not a substitute for professional legal advice.";
+        }
         
         // Add assistant message to session
         session.messages.push({
@@ -163,11 +229,10 @@ async function sendMessage() {
         // Add error message to session
         session.messages.push({
             role: 'assistant',
-            content: "Error: " + error.message
+            content: "I'm having trouble connecting to the legal database. Please try again later."
         });
         
         saveChatSessions();
         renderCurrentChat();
-        //avdesh
     }
 }

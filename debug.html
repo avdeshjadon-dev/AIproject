@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug LocalStorage</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        pre { background: #f4f4f4; padding: 10px; border-radius: 5px; }
+        button { padding: 8px 12px; background: #4b6cb7; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>LocalStorage Debugger</h1>
+    <button onclick="clearStorage()">Clear All Storage</button>
+    <h2>Current Storage:</h2>
+    <pre id="storageData"></pre>
+
+    <script>
+        function updateDisplay() {
+            const data = {
+                isAuthenticated: localStorage.getItem('isAuthenticated'),
+                currentUser: JSON.parse(localStorage.getItem('currentUser')),
+                users: JSON.parse(localStorage.getItem('users'))
+            };
+            document.getElementById('storageData').textContent = JSON.stringify(data, null, 2);
+        }
+
+        function clearStorage() {
+            localStorage.clear();
+            updateDisplay();
+            alert('LocalStorage cleared!');
+        }
+
+        updateDisplay();
+    </script>
+</body>
+</html>
