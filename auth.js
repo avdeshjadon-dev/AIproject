@@ -1,19 +1,22 @@
-// auth.js - Complete Fixed Version
+// auth.js - Final Fixed Version
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('[DEBUG] Auth system initialized');
+    console.log('[AUTH] System initialized');
     
-    // Debug: Log current path and auth status
-    console.log(`Current page: ${window.location.pathname}`);
-    console.log(`Auth status: ${localStorage.getItem('isAuthenticated')}`);
+    // Debug storage
+    console.log('[AUTH] Current storage:', {
+        isAuthenticated: localStorage.getItem('isAuthenticated'),
+        currentUser: JSON.parse(localStorage.getItem('currentUser') || null,
+        users: JSON.parse(localStorage.getItem('users')) || []
+    });
 
-    // Redirect logic
+    // Redirect if already authenticated
     if (isAuthenticated() && !isOnIndexPage()) {
-        console.log('[DEBUG] Redirecting to index.html');
+        console.log('[AUTH] User authenticated, redirecting to index');
         window.location.href = 'index.html';
         return;
     }
 
-    // Form initialization
+    // Initialize forms
     initForms();
 });
 
@@ -22,7 +25,8 @@ function isAuthenticated() {
 }
 
 function isOnIndexPage() {
-    return window.location.pathname.includes('index.html');
+    return window.location.pathname.endsWith('index.html') || 
+           window.location.pathname.endsWith('/');
 }
 
 function initForms() {
@@ -30,49 +34,48 @@ function initForms() {
     const signupForm = document.getElementById('signupForm');
 
     if (loginForm) {
-        console.log('[DEBUG] Initializing login form');
+        console.log('[AUTH] Initializing login form');
         loginForm.addEventListener('submit', handleLogin);
     }
 
     if (signupForm) {
-        console.log('[DEBUG] Initializing signup form');
+        console.log('[AUTH] Initializing signup form');
         signupForm.addEventListener('submit', handleSignup);
     }
 }
 
 async function handleLogin(e) {
     e.preventDefault();
-    console.log('[DEBUG] Login attempt started');
-
-    const email = document.getElementById('loginEmail').value.trim();
+    console.log('[AUTH] Handling login');
+    
+    const email = document.getElementById('loginEmail').value.trim().toLowerCase();
     const password = document.getElementById('loginPassword').value;
 
-    // Validation
+    // Validate inputs
     if (!email || !password) {
         showError('Please fill in all fields');
         return;
     }
 
     try {
+        // Get users from storage
         const users = JSON.parse(localStorage.getItem('users')) || [];
-        console.log('[DEBUG] Stored users:', users);
+        console.log('[AUTH] All users:', users);
 
-        // Find user (case-insensitive email)
-        const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+        // Find user by email (case-insensitive)
+        const user = users.find(u => u.email.toLowerCase() === email);
         
         if (!user) {
-            console.log('[DEBUG] User not found');
+            console.log('[AUTH] User not found for email:', email);
             showError('Invalid email or password');
             return;
         }
 
-        console.log('[DEBUG] Found user:', user);
+        console.log('[AUTH] Found user:', user);
 
-        // Password comparison
+        // Verify password (case-sensitive)
         if (user.password !== password) {
-            console.log('[DEBUG] Password mismatch');
-            console.log(`[DEBUG] Entered: ${password}`);
-            console.log(`[DEBUG] Stored: ${user.password}`);
+            console.log('[AUTH] Password mismatch');
             showError('Invalid email or password');
             return;
         }
@@ -81,28 +84,29 @@ async function handleLogin(e) {
         localStorage.setItem('isAuthenticated', 'true');
         localStorage.setItem('currentUser', JSON.stringify(user));
         
-        console.log('[DEBUG] Login successful, redirecting...');
+        console.log('[AUTH] Login successful, redirecting...');
         showSuccess('Login successful! Redirecting...');
         
+        // Redirect after short delay
         await new Promise(resolve => setTimeout(resolve, 1000));
         window.location.href = 'index.html';
 
     } catch (error) {
-        console.error('[ERROR] Login failed:', error);
+        console.error('[AUTH] Login error:', error);
         showError('An error occurred during login');
     }
 }
 
 function handleSignup(e) {
     e.preventDefault();
-    console.log('[DEBUG] Signup attempt started');
-
+    console.log('[AUTH] Handling signup');
+    
     const name = document.getElementById('signupName').value.trim();
     const email = document.getElementById('signupEmail').value.trim().toLowerCase();
     const password = document.getElementById('signupPassword').value;
     const confirmPassword = document.getElementById('signupConfirmPassword').value;
 
-    // Validation
+    // Validate inputs
     if (!name || !email || !password || !confirmPassword) {
         showError('Please fill in all fields');
         return;
@@ -119,10 +123,11 @@ function handleSignup(e) {
     }
 
     try {
-        let users = JSON.parse(localStorage.getItem('users')) || [];
+        // Get existing users
+        const users = JSON.parse(localStorage.getItem('users')) || [];
         
-        // Check if user exists
-        if (users.some(u => u.email === email)) {
+        // Check if email already exists
+        if (users.some(u => u.email.toLowerCase() === email)) {
             showError('Email already registered');
             return;
         }
@@ -136,46 +141,44 @@ function handleSignup(e) {
             createdAt: new Date().toISOString()
         };
 
+        // Save user
         users.push(newUser);
         localStorage.setItem('users', JSON.stringify(users));
         
-        console.log('[DEBUG] New user created:', newUser);
+        console.log('[AUTH] New user created:', newUser);
         showSuccess('Registration successful! Redirecting to login...');
         
+        // Redirect to login after short delay
         setTimeout(() => {
             window.location.href = 'login.html';
         }, 1500);
 
     } catch (error) {
-        console.error('[ERROR] Signup failed:', error);
+        console.error('[AUTH] Signup error:', error);
         showError('An error occurred during registration');
     }
 }
 
 function showError(message) {
-    console.log(`[ERROR] ${message}`);
+    console.error('[UI] Error:', message);
+    clearMessages();
+    
     const errorEl = document.createElement('div');
     errorEl.className = 'error-message';
     errorEl.textContent = message;
-    errorEl.style.display = 'block';
-
-    // Clear previous messages
-    document.querySelectorAll('.error-message, .success-message').forEach(el => el.remove());
-    
-    const form = document.querySelector('form');
-    form.appendChild(errorEl);
+    document.querySelector('form').appendChild(errorEl);
 }
 
 function showSuccess(message) {
-    console.log(`[SUCCESS] ${message}`);
+    console.log('[UI] Success:', message);
+    clearMessages();
+    
     const successEl = document.createElement('div');
     successEl.className = 'success-message';
     successEl.textContent = message;
-    successEl.style.display = 'block';
+    document.querySelector('form').appendChild(successEl);
+}
 
-    // Clear previous messages
+function clearMessages() {
     document.querySelectorAll('.error-message, .success-message').forEach(el => el.remove());
-    
-    const form = document.querySelector('form');
-    form.appendChild(successEl);
 }
